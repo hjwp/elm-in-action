@@ -1,5 +1,6 @@
 module PhotoGroove exposing (main)
 
+import Random
 import Array exposing (Array)
 import Browser
 import Html exposing (..)
@@ -19,6 +20,7 @@ type Msg
     = ClickedPhoto String
     | ClickedSize ThumbnailSize
     | ClickedSurpriseMe
+    | GotSelectedIndex Int
 
 
 type ThumbnailSize
@@ -35,6 +37,10 @@ urlPrefix =
 photoArray : Array Photo
 photoArray =
     Array.fromList initialModel.photos
+
+
+randomPhotoPicker : Random.Generator Int
+randomPhotoPicker = Random.int 0 2
 
 
 view : Model -> Html Msg
@@ -97,17 +103,20 @@ getPhotoUrl index =
             ""
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         ClickedPhoto url ->
-            { model | selectedUrl = url }
+            ({ model | selectedUrl = url }, Cmd.none)
 
         ClickedSurpriseMe ->
-            { model | selectedUrl = "2.jpeg" }
+            (model, Random.generate GotSelectedIndex randomPhotoPicker)
+
+        GotSelectedIndex index ->
+            ({ model | selectedUrl = getPhotoUrl index }, Cmd.none)
 
         ClickedSize size ->
-            { model | chosenSize = size }
+            ({ model | chosenSize = size }, Cmd.none)
 
 
 initialModel : Model
@@ -122,9 +131,11 @@ initialModel =
     }
 
 
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = initialModel
+    Browser.element
+        { init = \flags -> (initialModel, Cmd.none)
         , view = view
         , update = update
+        , subscriptions = \model -> Sub.none
         }
