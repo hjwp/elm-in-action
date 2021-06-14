@@ -1,6 +1,8 @@
 module PhotoGroove exposing (main)
 
 import Browser
+import Json.Decode exposing (Decoder, int, list, string, succeed)
+import Json.Decode.Pipeline exposing (optional, required)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
@@ -9,7 +11,10 @@ import Random
 
 
 type alias Photo =
-    { url : String }
+    { url : String
+    , size : Int
+    , title : String
+    }
 
 
 type Msg
@@ -43,8 +48,8 @@ urlPrefix =
 
 view : Model -> Html Msg
 view model =
-    div [ class "content" ]
-        (case model.status of
+    div [ class "content" ] <|
+        case model.status of
             Loaded photos selectedUrl ->
                 [ viewLoaded photos selectedUrl model.chosenSize ]
 
@@ -53,7 +58,6 @@ view model =
 
             Errored errorMessage ->
                 [ text ("Error: " ++ errorMessage) ]
-        )
 
 
 viewLoaded : List Photo -> String -> ThumbnailSize -> Html Msg
@@ -123,7 +127,7 @@ handlePhotoResponse : Result Http.Error String -> Msg
 handlePhotoResponse result =
     case result of
         Ok str ->
-            GotPhotos (List.map Photo (String.split "," str))
+            GotPhotos (List.map (\url -> (Photo url 1 "tbc")) (String.split "," str))
 
         Err _ ->
             GotPhotos []
@@ -179,8 +183,8 @@ initialCmd =
 main : Program () Model Msg
 main =
     Browser.element
-        { init = \flags -> ( initialModel, initialCmd )
+        { init = \_ -> ( initialModel, initialCmd )
         , view = view
         , update = update
-        , subscriptions = \model -> Sub.none
+        , subscriptions = \_ -> Sub.none
         }
