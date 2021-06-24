@@ -6,8 +6,8 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode
-import Json.Decode.Pipeline
 import Random
+import String.Format as Format
 
 
 type alias Photo =
@@ -83,6 +83,7 @@ viewThumbnail : String -> Photo -> Html Msg
 viewThumbnail selectedUrl thumb =
     img
         [ src (urlPrefix ++ thumb.url)
+        , title ("{{ title }} [{{ size }} KB]" |> Format.namedValue "title" thumb.title |> Format.namedValue "size" (String.fromInt thumb.size))
         , classList [ ( "selected", selectedUrl == thumb.url ) ]
         , onClick (ClickedPhoto thumb.url)
         ]
@@ -127,10 +128,12 @@ handlePhotoResponse : Result Http.Error String -> Msg
 handlePhotoResponse result =
     case result of
         Ok str ->
-            case 
-            (Json.Decode.decodeString (Json.Decode.list photoDecoder) str) of
-                Ok photos -> 
+            case
+                Json.Decode.decodeString (Json.Decode.list photoDecoder) str
+            of
+                Ok photos ->
                     GotPhotos photos
+
                 Err _ ->
                     GotPhotos []
 
@@ -143,7 +146,7 @@ photoDecoder =
     Json.Decode.map3 Photo
         (Json.Decode.field "url" Json.Decode.string)
         (Json.Decode.field "size" Json.Decode.int)
-        (Json.Decode.map (Maybe.withDefault "(untitled") (Json.Decode.maybe (Json.Decode.field "title" Json.Decode.string)))
+        (Json.Decode.map (Maybe.withDefault "(untitled)") (Json.Decode.maybe (Json.Decode.field "title" Json.Decode.string)))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
