@@ -1,12 +1,12 @@
 module PhotoGroove exposing (main)
 
 import Browser
-import Json.Decode exposing (Decoder, int, list, string, succeed)
-import Json.Decode.Pipeline exposing (optional, required)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Http
+import Json.Decode
+import Json.Decode.Pipeline
 import Random
 
 
@@ -127,10 +127,23 @@ handlePhotoResponse : Result Http.Error String -> Msg
 handlePhotoResponse result =
     case result of
         Ok str ->
-            GotPhotos (List.map (\url -> (Photo url 1 "tbc")) (String.split "," str))
+            case 
+            (Json.Decode.decodeString (Json.Decode.list photoDecoder) str) of
+                Ok photos -> 
+                    GotPhotos photos
+                Err _ ->
+                    GotPhotos []
 
         Err _ ->
             GotPhotos []
+
+
+photoDecoder : Json.Decode.Decoder Photo
+photoDecoder =
+    Json.Decode.map3 Photo
+        (Json.Decode.field "url" Json.Decode.string)
+        (Json.Decode.field "size" Json.Decode.int)
+        (Json.Decode.map (Maybe.withDefault "(untitled") (Json.Decode.maybe (Json.Decode.field "title" Json.Decode.string)))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -176,7 +189,7 @@ initialCmd : Cmd Msg
 initialCmd =
     Http.get
         { expect = Http.expectString handlePhotoResponse
-        , url = urlPrefix ++ "/photos/list"
+        , url = urlPrefix ++ "/photos/list.json"
         }
 
 
