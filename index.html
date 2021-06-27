@@ -32,6 +32,7 @@
       const app = Elm.PhotoGroove.init({node: document.getElementById("app")});
       app.ports.setFilter.subscribe( options => {
         requestAnimationFrame( () => {
+          console.log('pasta-ing');
           Pasta.apply(document.getElementById("main-canvas"), options);
         });
       });

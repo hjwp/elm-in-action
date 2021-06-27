@@ -210,8 +210,9 @@ update msg model =
             let
                 newModel =
                     { model | status = Loaded photos firstPhoto.url }
+                _ = Debug.log "Got photos" photos
             in
-            ( newModel, setFilterConfig model )
+            ( newModel, setFilterConfig newModel )
 
         GotPhotos [] ->
             ( { model | status = Errored "no photos found" }, Cmd.none )
