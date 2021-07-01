@@ -210,7 +210,9 @@ update msg model =
             let
                 newModel =
                     { model | status = Loaded photos firstPhoto.url }
-                _ = Debug.log "Got photos" photos
+
+                _ =
+                    Debug.log "Got photos" photos
             in
             ( newModel, setFilterConfig newModel )
 
