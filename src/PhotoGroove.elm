@@ -13,6 +13,7 @@ import String.Format as Format
 
 type alias Model =
     { status : Status
+    , activity : String
     , chosenSize : ThumbnailSize
     , hue : Int
     , ripple : Int
@@ -48,6 +49,7 @@ type Msg
     | SlidHue Int
     | SlidRipple Int
     | SlidNoise Int
+    | GotActivity String
 
 
 type alias FilterConfig =
@@ -57,6 +59,9 @@ type alias FilterConfig =
 
 
 port setFilter : FilterConfig -> Cmd msg
+
+
+port activityChanges : (String -> msg) -> Sub msg
 
 
 setFilterConfig : Model -> Cmd msg
@@ -107,6 +112,7 @@ viewLoaded photos selectedUrl model =
         , button
             [ onClick ClickedSurpriseMe ]
             [ text "Suprise me!" ]
+        , div [ class "activity" ] [ text model.activity ]
         , div [ class "filters" ]
             [ viewFilter "Hue" model.hue SlidHue
             , viewFilter "Ripple" model.ripple SlidRipple
@@ -268,6 +274,9 @@ update msg model =
             in
             ( newModel, setFilterConfig newModel )
 
+        GotActivity activity ->
+            ( { model | activity = activity }, Cmd.none )
+
 
 onSlide : (Int -> Msg) -> Attribute Msg
 onSlide toMsg =
@@ -286,6 +295,7 @@ onSlide toMsg =
 initialModel : Model
 initialModel =
     { status = Loading
+    , activity = ""
     , chosenSize = Medium
     , hue = 3
     , ripple = 3
@@ -301,11 +311,25 @@ initialCmd =
         }
 
 
-main : Program () Model Msg
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    activityChanges GotActivity
+
+
+
+-- main : Program () Model Msg
+
+init : String -> (Model, Cmd Msg)
+init flags = 
+    ( { initialModel | activity = "Initializing Pasta version " ++ flags}
+    , initialCmd
+    )
+
+main: Program String Model Msg
 main =
     Browser.element
-        { init = \_ -> ( initialModel, initialCmd )
+        { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
