@@ -7,12 +7,22 @@ import PhotoGroove
 import Test exposing (..)
 
 
-decoderTest : Test
-decoderTest =
-    test "happy path"
-        (\_ ->
-            """ {"url": "http://fruits.com/apple.jpeg", "size": 5, "title": "this is not an apple"}"""
-                |> Json.Decode.decodeString PhotoGroove.photoDecoder
-                |> Expect.equal
-                    (Ok { url = "http://fruits.com/apple.jpeg", size = 5, title = "this is not an apple" })
-        )
+decoderTests =
+    describe "decoder"
+        [ test
+            "happy path"
+          <|
+            \_ ->
+                """ {"url": "http://fruits.com/apple.jpeg", "size": 5, "title": "this is not an apple"}"""
+                    |> Json.Decode.decodeString PhotoGroove.photoDecoder
+                    |> Expect.equal
+                        (Ok { url = "http://fruits.com/apple.jpeg", size = 5, title = "this is not an apple" })
+        , test
+            "title should default to (untitled)"
+          <|
+            \_ ->
+                """ {"url": "http://fruits.com/apple.jpeg", "size": 5}"""
+                    |> Json.Decode.decodeString PhotoGroove.photoDecoder
+                    |> Expect.equal
+                        (Ok { url = "http://fruits.com/apple.jpeg", size = 5, title = "(untitled)" })
+        ]
