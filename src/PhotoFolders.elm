@@ -1,6 +1,7 @@
 module PhotoFolders exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
@@ -10,6 +11,7 @@ import Json.Decode
 
 type alias Model =
     { selectedPhotoUrl : Maybe String
+    , photos : Dict String Photo
     }
 
 
@@ -33,7 +35,20 @@ urlPrefix =
 
 view : Model -> Html Msg
 view model =
-    h1 [] [ text "The grooviest folders evar" ]
+    let
+        photoAt url =
+            Dict.get url model.photos
+    in
+    div [ class "content" ]
+        [ div [ class "selected-photo" ]
+            [ case Maybe.andThen photoAt model.selectedPhotoUrl of
+                Just photo ->
+                    viewSelectedPhoto photo
+
+                Nothing ->
+                    text ""
+            ]
+        ]
 
 
 viewSelectedPhoto : Photo -> Html Msg
@@ -73,14 +88,14 @@ update msg model =
             ( model, Cmd.none )
 
         ClickedPhoto url ->
-            ( {model | selectedPhotoUrl = Just url}, Cmd.none )
+            ( { model | selectedPhotoUrl = Just url }, Cmd.none )
 
 
 init : flags -> ( Model, Cmd Msg )
 init _ =
     let
         initialModel =
-            { selectedPhotoUrl = Nothing }
+            { selectedPhotoUrl = Nothing, photos = Dict.empty }
 
         modelDecoder : Json.Decode.Decoder Model
         modelDecoder =
