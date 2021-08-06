@@ -1,5 +1,6 @@
 module PhotoFolders exposing (main)
 
+import Array
 import Browser
 import Dict exposing (Dict)
 import Html exposing (..)
@@ -62,18 +63,25 @@ toggleExpanded path (Folder folder) =
 
         FolderInside nextIndex remainingPath ->
             let
-                -- TODO this is perverse, just find the one to change
-                -- and leave the others alone.
-                toggleExpandedInSubfolders : Int -> Folder -> Folder
-                toggleExpandedInSubfolders folderIndex subFolder =
-                    if folderIndex == nextIndex then
-                        toggleExpanded remainingPath subFolder
+                dummyFolder = Folder {name = "", expanded = False, photoUrls = [], subFolders = []}
 
-                    else
-                        subFolder
+                subFolderArray =
+                    Array.fromList folder.subFolders
+
+                folderToToggle =
+                    Array.get nextIndex subFolderArray
+                    |> Maybe.withDefault dummyFolder
+
+                updatedFolder =
+                    toggleExpanded remainingPath folderToToggle
+
+                updatedSubfolders : List Folder
+                updatedSubfolders =
+                    Array.set nextIndex updatedFolder subFolderArray
+                    |> Array.toList
             in
             Folder
-                { folder | subFolders = List.indexedMap toggleExpandedInSubfolders folder.subFolders }
+                { folder | subFolders = updatedSubfolders }
 
 
 view : Model -> Html Msg
