@@ -134,14 +134,15 @@ viewRelatedPhoto url =
 viewFolder : FolderPath -> Folder -> Html Msg
 viewFolder path (Folder folder) =
     let
-        viewSubfolder : Int -> Folder -> Html Msg
-        viewSubfolder index subFolder =
-            viewFolder (appendIndex index path) subFolder
-
         folderLabel =
             label [ onClick (ClickedFolder path) ] [ text folder.name ]
     in
     if folder.expanded then
+        let
+            viewSubfolder : Int -> Folder -> Html Msg
+            viewSubfolder index subFolder =
+                viewFolder (appendIndex index path) subFolder
+        in
         div [ class "folder expanded" ]
             [ folderLabel
             , div [ class "subfolders" ] (List.indexedMap viewSubfolder folder.subFolders)
