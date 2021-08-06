@@ -7,11 +7,13 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode
+import PhotoGroove exposing (photoDecoder)
 
 
 type alias Model =
     { selectedPhotoUrl : Maybe String
     , photos : Dict String Photo
+    , root : Folder
     }
 
 
@@ -28,6 +30,14 @@ type alias Photo =
     }
 
 
+type Folder
+    = Folder
+        { name : String
+        , photoUrls : List String
+        , subFolders : List Folder
+        }
+
+
 urlPrefix : String
 urlPrefix =
     "http://elm-in-action.com"
@@ -40,7 +50,11 @@ view model =
             Dict.get url model.photos
     in
     div [ class "content" ]
-        [ div [ class "selected-photo" ]
+        [ div [ class "folders" ]
+            [ h1 [] [ text "Folders" ]
+            , viewFolder model.root
+            ]
+        , div [ class "selected-photo" ]
             [ case Maybe.andThen photoAt model.selectedPhotoUrl of
                 Just photo ->
                     viewSelectedPhoto photo
@@ -74,6 +88,14 @@ viewRelatedPhoto url =
         []
 
 
+viewFolder : Folder -> Html Msg
+viewFolder (Folder folder) =
+    div [ class "folder" ]
+        [ label [] [ text folder.name ]
+        , div [ class "subfolders" ] (List.map viewFolder folder.subFolders)
+        ]
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -94,8 +116,12 @@ update msg model =
 init : flags -> ( Model, Cmd Msg )
 init _ =
     let
+        initialModel : Model
         initialModel =
-            { selectedPhotoUrl = Nothing, photos = Dict.empty }
+            { selectedPhotoUrl = Nothing
+            , photos = Dict.empty
+            , root = Folder { name = "empty", photoUrls = [], subFolders = [] }
+            }
 
         modelDecoder : Json.Decode.Decoder Model
         modelDecoder =
@@ -125,6 +151,31 @@ init _ =
                             }
                           )
                         ]
+                , root =
+                    Folder
+                        { name = "Photos"
+                        , photoUrls = []
+                        , subFolders =
+                            [ Folder
+                                { name = "outdoors"
+                                , photoUrls = []
+                                , subFolders = []
+                                }
+                            , Folder
+                                { name = "indoors"
+                                , photoUrls = [ "fresco" ]
+                                , subFolders = []
+                                }
+                            , Folder
+                                { name = "2017"
+                                , photoUrls = []
+                                , subFolders =
+                                    [ Folder { name = "outdoors", photoUrls = [], subFolders = [] }
+                                    , Folder { name = "indoors", photoUrls = [], subFolders = [] }
+                                    ]
+                                }
+                            ]
+                        }
                 }
 
         _ =
