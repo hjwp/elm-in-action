@@ -19,7 +19,7 @@ type alias Model =
 
 type Msg
     = ClickedPhoto String
-    | ClickedFolder FolderPath
+    | ClickedFolder FolderLocator
     | GotInitialModel (Result Http.Error Model)
 
 
@@ -40,9 +40,9 @@ type Folder
         }
 
 
-type FolderPath
+type FolderLocator
     = ThisOne
-    | FolderInside Int FolderPath
+    | FolderInside Int FolderLocator
 
 
 urlPrefix : String
@@ -50,30 +50,43 @@ urlPrefix =
     "http://elm-in-action.com"
 
 
-{-| given a path to a folder that we want to expand,
-recursively descend until we reach the end of the path
+{-| given a locator for a folder that we want to expand,
+recursively descend until we reach the end of the locator
 and toggle that folder's expanded value
 -}
-toggleExpanded : FolderPath -> Folder -> Folder
-toggleExpanded path (Folder folder) =
-    case path of
+toggleExpanded : FolderLocator -> Folder -> Folder
+toggleExpanded locator (Folder folder) =
+    case locator of
         ThisOne ->
             Folder { folder | expanded = not folder.expanded }
 
         FolderInside nextIndex remainingPath ->
             let
-                -- TODO this is perverse, just find the one to change
-                -- and leave the others alone.
-                toggleExpandedInSubfolders : Int -> Folder -> Folder
-                toggleExpandedInSubfolders folderIndex subFolder =
-                    if folderIndex == nextIndex then
-                        toggleExpanded remainingPath subFolder
-
-                    else
-                        subFolder
+                toggledSubfolders =
+                    folder.subFolders
+                        |> replaceItemAt
+                            nextIndex
+                            (toggleExpanded remainingPath)
             in
             Folder
-                { folder | subFolders = List.indexedMap toggleExpandedInSubfolders folder.subFolders }
+                { folder | subFolders = toggledSubfolders }
+
+
+{-| "replaces" an item at a given index in a list
+by applying a function to it
+(returns a new list obvs. other elements untouched)
+-}
+replaceItemAt : Int -> (a -> a) -> List a -> List a
+replaceItemAt index f list =
+    let
+        replaceIfIth i item =
+            if i == index then
+                f item
+
+            else
+                item
+    in
+    List.indexedMap replaceIfIth list
 
 
 view : Model -> Html Msg
@@ -111,9 +124,9 @@ viewSelectedPhoto photo =
         ]
 
 
-appendIndex : Int -> FolderPath -> FolderPath
-appendIndex index path =
-    case path of
+appendIndex : Int -> FolderLocator -> FolderLocator
+appendIndex index locator =
+    case locator of
         ThisOne ->
             FolderInside index ThisOne
 
@@ -131,17 +144,17 @@ viewRelatedPhoto url =
         []
 
 
-viewFolder : FolderPath -> Folder -> Html Msg
-viewFolder path (Folder folder) =
+viewFolder : FolderLocator -> Folder -> Html Msg
+viewFolder locator (Folder folder) =
     let
         folderLabel =
-            label [ onClick (ClickedFolder path) ] [ text folder.name ]
+            label [ onClick (ClickedFolder locator) ] [ text folder.name ]
     in
     if folder.expanded then
         let
             viewSubfolder : Int -> Folder -> Html Msg
             viewSubfolder index subFolder =
-                viewFolder (appendIndex index path) subFolder
+                viewFolder (appendIndex index locator) subFolder
         in
         div [ class "folder expanded" ]
             [ folderLabel
@@ -169,8 +182,8 @@ update msg model =
         ClickedPhoto url ->
             ( { model | selectedPhotoUrl = Just url }, Cmd.none )
 
-        ClickedFolder path ->
-            ( { model | root = toggleExpanded path model.root }, Cmd.none )
+        ClickedFolder locator ->
+            ( { model | root = toggleExpanded locator model.root }, Cmd.none )
 
 
 init : flags -> ( Model, Cmd Msg )
@@ -182,7 +195,7 @@ init _ =
             , photos = Dict.empty
             , root =
                 Folder
-                    { name = "empty"
+                    { name = "Loading folders..."
                     , expanded = False
                     , photoUrls = []
                     , subFolders = []
