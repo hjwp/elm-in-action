@@ -99,9 +99,34 @@ init _ =
 
         modelDecoder : Json.Decode.Decoder Model
         modelDecoder =
-            Json.Decode.succeed initialModel
+            Json.Decode.succeed
+                { selectedPhotoUrl = Just "trevi"
+                , photos =
+                    Dict.fromList
+                        [ ( "trevi"
+                          , { title = "Trevi"
+                            , relatedUrls = [ "coli", "fresco" ]
+                            , size = 34
+                            , url = "trevi"
+                            }
+                          )
+                        , ( "fresco"
+                          , { title = "Fresco"
+                            , relatedUrls = [ "trevi" ]
+                            , size = 46
+                            , url = "fresco"
+                            }
+                          )
+                        , ( "coli"
+                          , { title = "Coli"
+                            , relatedUrls = [ "trevi", "fresco" ]
+                            , size = 46
+                            , url = "coli"
+                            }
+                          )
+                        ]
+                }
 
-        -- TODO
         _ =
             Debug.log "init" "init"
     in
