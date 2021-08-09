@@ -111,6 +111,12 @@ view model =
         ]
 
 
+viewPhoto : String -> Html Msg
+viewPhoto url =
+    div [ class "photo", onClick (ClickedPhoto url) ]
+        [ text url ]
+
+
 viewSelectedPhoto : Photo -> Html Msg
 viewSelectedPhoto photo =
     div
@@ -155,10 +161,14 @@ viewFolder locator (Folder folder) =
             viewSubfolder : Int -> Folder -> Html Msg
             viewSubfolder index subFolder =
                 viewFolder (appendIndex index locator) subFolder
+
+            contents =
+                List.indexedMap viewSubfolder folder.subFolders
+                    ++ List.map viewPhoto folder.photoUrls
         in
         div [ class "folder expanded" ]
             [ folderLabel
-            , div [ class "subfolders" ] (List.indexedMap viewSubfolder folder.subFolders)
+            , div [ class "subfolders" ] contents
             ]
 
     else
@@ -186,6 +196,108 @@ update msg model =
             ( { model | root = toggleExpanded locator model.root }, Cmd.none )
 
 
+type alias PhotoWithNoUrl =
+    { title : String
+    , size : Int
+    , relatedUrls : List String
+    }
+
+
+
+{-
+
+   INCOMING JSON FORMAT:
+
+   { "name": "All Photos",
+     "photos": {
+         "2 turtles": { "title": "Two turtles", "size": 23, "relatedUrls"...}
+         "another photo": { ... }
+     },
+     "subfolders": [
+        {
+            "name": "first subfolder",
+            "photos": {...},
+            "subfolders": [...]
+        },
+        { "name": ..., "photos": [...], "subfolders": [...] },
+     }
+-}
+
+
+photosFrom : FolderWithRealPhotos -> List Photo
+photosFrom (FolderWithRealPhotos root) =
+    root.photos ++ List.concat (List.map photosFrom root.subFolders)
+
+
+modelDecoder : Json.Decode.Decoder Model
+modelDecoder =
+    let
+        toFolder : FolderWithRealPhotos -> Folder
+        toFolder (FolderWithRealPhotos root) =
+            Folder
+                { name = root.name
+                , expanded = False
+                , photoUrls = List.map .url root.photos
+                , subFolders = List.map toFolder root.subFolders
+                }
+    in
+    Json.Decode.map
+        (\root ->
+            let
+                photos =
+                    photosFrom root
+                        |> List.map (\photo -> ( photo.url, photo ))
+                        |> Dict.fromList
+            in
+            { selectedPhotoUrl = Nothing, photos = photos, root = toFolder root }
+        )
+        folderDecoder
+
+
+photosDecoder : Json.Decode.Decoder (List Photo)
+photosDecoder =
+    let
+        bodyDecoder : Json.Decode.Decoder PhotoWithNoUrl
+        bodyDecoder =
+            Json.Decode.map3 PhotoWithNoUrl
+                (Json.Decode.map (Maybe.withDefault "(untitled)") (Json.Decode.maybe (Json.Decode.field "title" Json.Decode.string)))
+                (Json.Decode.field "size" Json.Decode.int)
+                (Json.Decode.field "related_photos" (Json.Decode.list Json.Decode.string))
+    in
+    Json.Decode.keyValuePairs bodyDecoder
+        |> Json.Decode.map
+            (List.map
+                (\( url, body ) ->
+                    Photo body.title body.size body.relatedUrls url
+                )
+            )
+
+
+type FolderWithRealPhotos
+    = FolderWithRealPhotos
+        { name : String
+        , photos : List Photo
+        , subFolders : List FolderWithRealPhotos
+        }
+
+
+folderDecoder : Json.Decode.Decoder FolderWithRealPhotos
+folderDecoder =
+    Json.Decode.map3
+        (\name photos subFolders ->
+            FolderWithRealPhotos
+                { name = name
+                , photos = photos
+                , subFolders = subFolders
+                }
+        )
+        (Json.Decode.field "name" Json.Decode.string)
+        (Json.Decode.field "photos" photosDecoder)
+        (Json.Decode.field "subfolders"
+            (Json.Decode.lazy (\_ -> Json.Decode.list folderDecoder))
+        )
+
+
 init : flags -> ( Model, Cmd Msg )
 init _ =
     let
@@ -201,75 +313,6 @@ init _ =
                     , subFolders = []
                     }
             }
-
-        modelDecoder : Json.Decode.Decoder Model
-        modelDecoder =
-            Json.Decode.succeed
-                { selectedPhotoUrl = Just "trevi"
-                , photos =
-                    Dict.fromList
-                        [ ( "trevi"
-                          , { title = "Trevi"
-                            , relatedUrls = [ "coli", "fresco" ]
-                            , size = 34
-                            , url = "trevi"
-                            }
-                          )
-                        , ( "fresco"
-                          , { title = "Fresco"
-                            , relatedUrls = [ "trevi" ]
-                            , size = 46
-                            , url = "fresco"
-                            }
-                          )
-                        , ( "coli"
-                          , { title = "Coli"
-                            , relatedUrls = [ "trevi", "fresco" ]
-                            , size = 46
-                            , url = "coli"
-                            }
-                          )
-                        ]
-                , root =
-                    Folder
-                        { name = "Photos"
-                        , expanded = True
-                        , photoUrls = []
-                        , subFolders =
-                            [ Folder
-                                { name = "outdoors"
-                                , expanded = True
-                                , photoUrls = []
-                                , subFolders = []
-                                }
-                            , Folder
-                                { name = "indoors"
-                                , expanded = True
-                                , photoUrls = [ "fresco" ]
-                                , subFolders = []
-                                }
-                            , Folder
-                                { name = "2017"
-                                , expanded = True
-                                , photoUrls = []
-                                , subFolders =
-                                    [ Folder
-                                        { name = "outdoors"
-                                        , expanded = True
-                                        , photoUrls = []
-                                        , subFolders = []
-                                        }
-                                    , Folder
-                                        { name = "indoors"
-                                        , expanded = True
-                                        , photoUrls = []
-                                        , subFolders = []
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                }
 
         _ =
             Debug.log "init" "init"
